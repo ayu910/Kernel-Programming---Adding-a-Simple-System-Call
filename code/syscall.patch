@@ -1,0 +1,105 @@
+diff --git a/Makefile b/Makefile
+index 24a4c1b97bb0..45d8ef768f6a 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1070,7 +1070,7 @@ export MODORDER := $(extmod-prefix)modules.order
+ export MODULES_NSDEPS := $(extmod-prefix)modules.nsdeps
+ 
+ ifeq ($(KBUILD_EXTMOD),)
+-core-y		+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/ block/
++core-y		+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/ block/ my_syscall/
+ 
+ vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, \
+ 		     $(core-y) $(core-m) $(drivers-y) $(drivers-m) \
+diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+index 78847b32e137..9a964e0a4bcd 100644
+--- a/arch/x86/entry/syscalls/syscall_64.tbl
++++ b/arch/x86/entry/syscalls/syscall_64.tbl
+@@ -403,3 +403,4 @@
+ 545	x32	execveat		compat_sys_execveat
+ 546	x32	preadv2			compat_sys_preadv64v2
+ 547	x32	pwritev2		compat_sys_pwritev64v2
++548	common	sys_s2_encrypt		sys_sys_s2_encrypt
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index b951a87da987..5c5792409cac 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -1227,6 +1227,9 @@ asmlinkage long sys_old_mmap(struct mmap_arg_struct __user *arg);
+  */
+ asmlinkage long sys_ni_syscall(void);
+ 
++asmlinkage long sys_sys_s2_encrypt(char __user *input_string, int key);
++
++
+ #endif /* CONFIG_ARCH_HAS_SYSCALL_WRAPPER */
+ 
+ 
+diff --git a/my_syscall/Makefile b/my_syscall/Makefile
+new file mode 100755
+index 000000000000..9b264f54766b
+--- /dev/null
++++ b/my_syscall/Makefile
+@@ -0,0 +1 @@
++obj-y += sys_s2_encrypt.o
+diff --git a/my_syscall/sys_s2_encrypt.c b/my_syscall/sys_s2_encrypt.c
+new file mode 100755
+index 000000000000..71aca11d3145
+--- /dev/null
++++ b/my_syscall/sys_s2_encrypt.c
+@@ -0,0 +1,56 @@
++/*
++ * Description:		An implementation of macro for system call for sys_s2_encrypt()
++ * Version:		1.0
++ * Author:		Ayush Sharma
++*/
++
++
++#include <linux/kernel.h>
++#include <linux/syscalls.h>
++
++/*
++ * Description:		Below function encrypts the input string recieved
++ * 			using the key provided by adding key value to each 
++ * 			character of string.
++ *Arguments:		Input string, Key
++ */
++
++
++int sys_sys_s2_encrypt(char __user *input_string, int key)
++{
++	char * encrypted_string;
++	int input_value=0;
++	int i = 0;
++	int str_len = strnlen_user(input_string, 32767);
++	encrypted_string = kmalloc(str_len,GFP_KERNEL);
++
++	if(key < 1 || key > 5)
++	{
++		printk("Value of key is OUT OF BOUND. Exiting...");
++		return -EINVAL;
++	}
++
++	printk("Input String is %s", input_string);
++	
++	input_value = copy_from_user(encrypted_string, input_string, str_len);
++	for(i=0; i< str_len; i++)
++	{
++		encrypted_string[i] = encrypted_string[i] + key;
++	}
++	encrypted_string[str_len] = '\0';
++
++	printk("Encrypted String is %s", encrypted_string);
++
++	printk("Value of key : %d", key);
++	return 0;
++}
++
++/*
++ *Description:		Below Macro is a system call definition for sys_s2_encrypt.
++ */
++
++SYSCALL_DEFINE2(sys_s2_encrypt, char __user *, input_string, int, key)
++{
++	return sys_sys_s2_encrypt(input_string, key);
++	
++}
